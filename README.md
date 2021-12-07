@@ -304,11 +304,19 @@ end
 但是，由于直方图平移算法在平移完零点后，直方图中会有很明显的峰值点旁边的值的缺失，因此图像隐藏有秘密信息这一事实较易被发现。为解决这个问题以及直方图算法嵌入容量受峰值点影响较大的情况，一种新的像素差直方图修改算法产生了。  
 
 ## 像素差直方图修改算法  
-在上述直方图平移算法中，因为将零值点平移至峰值点旁边，这导致了在图像的直方图中产生了肉眼极易察觉的凹陷，这也导致他人能容易察觉这是一幅嵌入了秘密信息的图像。
+在上述直方图平移算法中，因为将零值点平移至峰值点旁边，
+这导致了在图像的直方图中产生了肉眼极易察觉的凹陷，这也导致他人能容易察觉这是一幅嵌入了秘密信息的图像。
 而且，在直方图平移算法中，嵌入信息量的大小受峰值点影响，可能存在嵌入容量过小的情况。  
 为了解决包含上述问题在内的一系列问题像素差直方图修改算法产生，该方法也被称为“张方法”。  
+该方法的二叉树的高度最高只能达到5，但是二叉树的高度越高，对图像像素造成的改变也就越大，图像失真越严重。
 
-## 高保真直方图平移算法
+## 高保真直方图平移算法  
+张方法虽然解决了直方图平移后图像中存在凹陷的问题，但是却存在某些像素值改动过大的问题。为了解决凹陷问题和改动多大问题，Tang et al.提出了一种高保真的直方图平移算法[[3]](#参考文献)。  
+它不仅解决了直方图中存在凹陷的问题，因为其存在像素补足，所以它还能使的在嵌入秘密信息的同时对图像的改动更小。  
+但又因为其一系列的算法要求，导致能够满足嵌入条件的像素点可能比较少，导致嵌入容量小的问题。  
+
+# 总结  
+
 
 
 
@@ -330,4 +338,5 @@ end
 
 # 参考文献
   [1]J. Fridrich, M. Goljan, P. Lisonek and D. Soukal, "Writing on wet paper," in IEEE Transactions on Signal Processing, vol. 53, no. 10, pp. 3923-3935, Oct. 2005, doi: 10.1109/TSP.2005.855393.  
-  [2]I. J. Cox, J. Kilian, F. T. Leighton, and T. Shamoon. 1997. Secure spread spectrum watermarking for multimedia. <i>Trans. Img. Proc.</i> 6, 12 (December 1997), 1673–1687. DOI:https://doi.org/10.1109/83.650120
+  [2]I. J. Cox, J. Kilian, F. T. Leighton, and T. Shamoon. 1997. Secure spread spectrum watermarking for multimedia. <i>Trans. Img. Proc.</i> 6, 12 (December 1997), 1673–1687. DOI:https://doi.org/10.1109/83.650120  
+  [3]https://www.researchgate.net/publication/348095095_Reversible_Data_Hiding_Algorithm_with_High_Imperceptibility_Based_on_Histogram_Shifting
