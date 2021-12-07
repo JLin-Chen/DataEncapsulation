@@ -53,7 +53,7 @@ end
 因为LSB算法中需要把LSB位置为0，在不使用位置图的情况下无法将图片复原，所以该方法是不可逆的信息隐藏算法。  
 ## "Writing on Wet Papper"
 在上述方法中，由于秘密信息是按照顺序嵌入图像中的，嵌入和提取过程都较为简单，这也易导致秘密信息的意外泄漏。
-因此`Jessica et al.`在2005年于IEEE上发表论文[1]提出一种随机嵌入的方法，该方法也被称作“湿码通信”,它使得信息较不容易被窃取。  
+因此`Jessica et al.`在2005年于IEEE上发表[1]提出一种随机嵌入的方法，该方法也被称作“湿码通信”,它使得信息较不容易被窃取。  
 
 我们使用图像的红色图层来隐藏信息：
 ```matlab
@@ -125,7 +125,7 @@ end
 ```  
 
 ## 变换域算法COX  
-上述两种方法都是在空间域进行信息隐藏，即直接在载体数据上加载水印信息。接下来我们使用的是经过DCT变换后的信息隐藏方法。  
+上述两种方法都是在空间域进行信息隐藏，即直接在载体数据上加载水印信息。接下来我们使用的是经过DCT变换后的信息隐藏方法。该方法也称为NEC算法或基于扩频技术的算法，它[2]于1997年被提出，收录于IEEE。    
 为解决信息嵌入的不可见性和鲁棒性之间的矛盾，通常将信息嵌入AC低频系数中。  
 信息嵌入函数：  
 ```matlab 
@@ -160,7 +160,146 @@ for i=1:N
 end
 Watermark_Extracted=int8(abs(Watermark_Extracted)); %防止产生未知错误，转换为整型
 end
+```   
+# 可逆信息隐藏
+在某些应用场景下，我们希望在提取完秘密信息后能够恢复载体图像。下面将介绍经典的直方图平移算法以及基于该算法提出的一些改进方法。  
+##直方图平移算法  
+对于一个图像，以横坐标为图像中每个像素点的值，纵坐标为每个像素值所出现的频率，所得的即为该图像的直方图。  
+直方图平移算法就是根据图像的直方图中存在峰值点和零值点的特征而设计的一种可逆信息隐藏算法。找到距直方图峰值点最近的零值点，把二者之间的像素进行平移，便能在峰值点左右得到嵌入空间，在峰值点进行嵌入时，嵌入空间最大。多对峰值点嵌入的方法也能有效提高嵌入信息的容量。  
+若图像没有零值点，则寻找最低直方，记录直方中的像素值以及原图中等于该像素值得像素所在的位置，然后将该直方置为０。虽然该方法解决了直方图没有零值点的问题，但是由于需要记录位置图，会造成一定的信息冗余，且占用有效隐藏容量。  
+首先,先得到图像直方图数据的数组表示:  
+```matlab
+[counts,grayvalue]=imhist(image); 
 ```  
+然后，找到峰值点和零值点:  
+```matlab
+Peak_point=max(grayvalue(find(counts==max(counts))));  %find返回最大值对应的横坐标，grayvalue返回灰度值对应的值，最外层max防止有多个峰值的情况，只取简单的一个最大值 
+x=grayvalue(find(counts==min(counts))); %找到最小值的点，但可能是多值
+y=abs(x-Peak_point);  %得到一组值
+Zero_point=x(find(y==min(y)));
+```  
+进行直方图的平移,使得峰值点附近出现嵌入空间：    
+```matlab
+for i=1:m
+    for j=1:n
+        if(Peak_point>Zero_point)
+            if((image(i,j)>Zero_point)&&(image(i,j)<Peak_point))
+                image(i,j)=image(i,j)-uint8(1);
+            end
+        else
+            if((image(i,j)<Zero_point)&&(image(i,j)>Peak_point))
+                image(i,j)=image(i,j)+uint8(1); 
+            end
+        end
+    end
+end 
+```  
+嵌入信息：  
+```matlab
+%嵌入信息
+W_index=1;
+if(Peak_point<Zero_point)
+    for i=1:m
+        if W_index>length(W) 
+            break; %信息嵌入完毕跳出循环
+        end
+        for j=1:n
+            if W_index<=length(W)
+                if image(i,j)==Peak_point
+                    if W(W_index)==1
+                        image(i,j)=image(i,j)+1;
+                        W_index=W_index+1;
+                    else 
+                        image(i,j)=image(i,j);
+                        W_index=W_index+1;
+                    end
+                end
+            end
+        end
+    end
+else
+    for i=1:m
+        if W_index>length(W) 
+            break; %信息嵌入完毕跳出循环
+        end
+        for j=1:n
+           if W_index<=length(W)
+                if image(i,j)==Peak_point
+                    if W(W_index)==1
+                        image(i,j)=image(i,j)-1;
+                        W_index=W_index+1;
+                    else 
+                        image(i,j)=image(i,j);
+                        W_index=W_index+1;
+                    end
+                end
+           end
+        end
+    end
+end                
+```   
+提取信息：  
+```matlab
+for i=1:m
+    if k>N
+        break; %信息已提取完毕
+    end
+    for j=1:n
+        if(Peak_point<Zero_point)
+            if k>N
+                break;
+            end
+            if T(i,j)==Peak_point
+                Wa(k)=0;
+                k=k+1;
+            elseif T(i,j)==(Peak_point+1)
+                Wa(k)=1;
+                k=k+1;
+            end
+        else 
+            if k>N
+                break;
+            end
+            if T(i,j)==Peak_point
+                Wa(k)=0;
+                k=k+1;
+            elseif T(i,j)==(Peak_point-1)
+                Wa(k)=1;
+                k=k+1;
+            end
+        end
+    end
+end
+```   
+图像复原：
+```matlab
+for i=1:m
+    for j=1:n
+        if(Peak_point>Zero_point)
+            if((T(i,j)>=Zero_point)&&(T(i,j)<Peak_point))  %>=确保包括零值点都能得到复原
+                T(i,j)=T(i,j)+uint8(1);
+            end
+        else
+            if((T(i,j)<=Zero_point)&&(T(i,j)>Peak_point))
+                T(i,j)=T(i,j)-uint8(1); 
+            end
+        end
+    end
+end 
+```  
+但是，直方图平移算法可能出现没有零值点的问题，在没有零值点的情况下，上述算法将无法实现。  
+
+##Border-Following直方图平移算法  
+为了解决图像可能没有零值点的问题，Border－Following方法被提出。该方法通过把图像分成多个小块，使得零值点有更高的概率出现。这种方法是对经典的直方图平移算法的一种改进和补充。  
+但是，由于直方图平移算法在平移完零点后，直方图中会有很明显的峰值点旁边的值的缺失，因此图像隐藏有秘密信息这一事实较易被发现。为解决这个问题以及直方图算法嵌入容量受峰值点影响较大的情况，一种新的像素差直方图修改算法产生了。  
+
+##像素差直方图修改算法  
+在上述直方图平移算法中，因为将零值点平移至峰值点旁边，这导致了在图像的直方图中产生了肉眼极易察觉的凹陷，这也导致他人能容易察觉这是一幅嵌入了秘密信息的图像。
+而且，在直方图平移算法中，嵌入信息量的大小受峰值点影响，可能存在嵌入容量过小的情况。  
+为了解决包含上述问题在内的一系列问题像素差直方图修改算法产生，该方法也被称为“张方法”。  
+
+##高保真直方图平移算法
+
 
 
 
@@ -180,4 +319,5 @@ end
 
 
 # 参考文献
-  [1]J. Fridrich, M. Goljan, P. Lisonek and D. Soukal, "Writing on wet paper," in IEEE Transactions on Signal Processing, vol. 53, no. 10, pp. 3923-3935, Oct. 2005, doi: 10.1109/TSP.2005.855393.
+  [1]J. Fridrich, M. Goljan, P. Lisonek and D. Soukal, "Writing on wet paper," in IEEE Transactions on Signal Processing, vol. 53, no. 10, pp. 3923-3935, Oct. 2005, doi: 10.1109/TSP.2005.855393.  
+  [2]I. J. Cox, J. Kilian, F. T. Leighton, and T. Shamoon. 1997. Secure spread spectrum watermarking for multimedia. <i>Trans. Img. Proc.</i> 6, 12 (December 1997), 1673–1687. DOI:https://doi.org/10.1109/83.650120
