@@ -4,9 +4,9 @@
 # 目录
 * [基本操作](#基本操作)  
 * [不可逆信息隐藏](#不可逆信息隐藏)  
-    * [空间域隐写LSB]  
-    * [Writing on Wet Paper]    
-    * [变换域COX算法]  
+    * 空间域隐写LSB  
+    * Writing on Wet Paper    
+    * 变换域COX算法  
 * [可逆信息隐藏](#可逆信息隐藏)
 * [参考文献](#参考文献)  
 ***  
@@ -31,6 +31,8 @@ fid=fopen('message.txt','r');
 ```matlab
 imwrite(I,'message_hinded.bmp')；
 ```  
+使用的图像：  
+![lena](lena.bmp "lena")   
 
 # 不可逆信息隐藏
 首先介绍不可逆信息隐藏，它的逻辑与代码实现都相对简单易懂，适合初学者入手。
