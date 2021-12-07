@@ -54,6 +54,36 @@ end
 ## "Writing on Wet Papper"
 在上述方法中，由于秘密信息是按照顺序嵌入图像中的，嵌入和提取过程都较为简单，这也易导致秘密信息的意外泄漏。
 因此`Jessica et al.`在2005年于IEEE上发表论文[1]提出一种随机嵌入的方法，该方法也被称作“湿码通信”,它使得信息较不容易被窃取。  
+
+我们使用图像的红色图层来隐藏信息：
+```matlab
+image1=Hide_image(:,:,1);
+```
+信息嵌入核心代码：
+```matlab
+%寻找嵌入点
+[row,col]=randinterval(image1,msg_len,1996);   % 1996是随机数种子
+%嵌入信息
+for i=1:msg_len
+    image1(row(i),col(i))=image1(row(i),col(i))-mod(image1(row(i),col(i)),2)+msg(i,1);
+end
+%将图像融合
+Hide_image(:,:,1)=image1;
+Hide_image=uint8(Hide_image);
+```
+信息提取核心代码：
+```matlab
+%调用同一个函数再次得到所嵌入的位置的信息
+[row,col]=randinterval(Picture_R,msg_len,1996);
+%提取信息
+for i=1:msg_len
+    if bitand(Picture(row(i),col(i)),1)==1 %像素与比特位进行按位与.提出最后一位秘密信息比特
+        fwrite(fid,1,'ubit1');
+    else
+        fwrite(fid,0,'ubit1');
+    end
+end
+```  
 这里，我们用到了一个函数`randinterval`，它的作用是返回随机数向量，该向量表明了应在何处嵌入信息。  
 randinterval:  
 ```matlab
@@ -93,35 +123,46 @@ for i=2:count
 
 end
 ```  
-我们使用图像的红色图层来隐藏信息：
-```matlab
-image1=Hide_image(:,:,1);
-```
-信息嵌入核心代码：
-```matlab
-%寻找嵌入点
-[row,col]=randinterval(image1,msg_len,1996);   % 1996是随机数种子
-%嵌入信息
-for i=1:msg_len
-    image1(row(i),col(i))=image1(row(i),col(i))-mod(image1(row(i),col(i)),2)+msg(i,1);
+
+## 变换域算法COX  
+上述两种方法都是在空间域进行信息隐藏，即直接在载体数据上加载水印信息。接下来我们使用的是经过DCT变换后的信息隐藏方法。  
+为解决信息嵌入的不可见性和鲁棒性之间的矛盾，通常将信息嵌入AC低频系数中。  
+信息嵌入函数：  
+```matlab 
+function [ J ] = Cox_embed( I, W, alpha, N ) %图像，水印，水印的强度， 水印的长度
+[m,n]=size(I);
+if (m*n<N)
+    error('载体图像过小');
 end
-%将图像融合
-Hide_image(:,:,1)=image1;
-Hide_image=uint8(Hide_image);
-```
-信息提取核心代码：
-```matlab
-%调用同一个函数再次得到所嵌入的位置的信息
-[row,col]=randinterval(Picture_R,msg_len,1996);
-%提取信息
-for i=1:msg_len
-    if bitand(Picture(row(i),col(i)),1)==1 %像素与比特位进行按位与.提出最后一位秘密信息比特
-        fwrite(fid,1,'ubit1');
-    else
-        fwrite(fid,0,'ubit1');
-    end
+P=double(I)/255; %双精度，归一化
+DCTI=dct2(P);
+[index_row,index_col]=FindNLargest(abs(DCTI),N);
+for i=1:N
+    DCTI(index_row(i),index_col(i))=DCTI(index_row(i),index_col(i))*(1+alpha*W(i)); %嵌入信息
 end
-```
+J=idct2(DCTI); %反变换，J为含水印的图像
+imwrite(J,'secret_lena.bmp');
+end
+```  
+信息提取函数：  
+```matlab
+function [ Watermark_Extracted ] = Cox_extract( I, J, alpha, N  ) %原图像，含水印图像，水印强度， 水印长度
+[m,n]=size(I);
+[x,y]=size(J);
+if ((m~=x)|(n~=y))
+    error('图像大小不一致');
+end
+DCTI=dct2(I);
+DCTJ=dct2(J);
+[index_row,index_col]=FindNLargest(abs(DCTI),N);
+for i=1:N
+    Watermark_Extracted(i)=(DCTJ(index_row(i),index_col(i))/DCTI(index_row(i),index_col(i))-1)/alpha;
+end
+Watermark_Extracted=int8(abs(Watermark_Extracted)); %防止产生未知错误，转换为整型
+end
+```  
+
+
 
 
 
